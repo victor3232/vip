@@ -49,4 +49,4 @@
 
 
 ### SS SCRIPT
-![image.png](https://github.com/victor3232/vip/edit/main/IMG_20231217_183435.jpg)
+![image.jpg](https://github.com/victor3232/vip/edit/main/IMG_20231217_183435.jpg)

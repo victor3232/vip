@@ -33,7 +33,8 @@
 - VMESS GRPC 443
 - VMESS NONTLS 80
 - SSH WS / TLS 443
-- SSH NON TLS 8880
+- SS)
+H NON TLS 8880
 - OVPN SSL/TCP 1194
 - SLOWDNS 5300
 ```
@@ -45,8 +46,10 @@
 - GRPC : ON
 - WEBSOCKET : ON
 - Always Use HTTPS : OFF
-- UNDER ATTACK MODE : OFF
+iyya - UNDER ATTACK MODE : OFF
+```
 
 
-### SS SCRIPT
-![image.jpg](https://github.com/victor3232/vip/edit/main/IMG_20231217_183435.jpg)
+### TAMPILAN SCRIPT
+![IMG_20231217_183435](https://github.com/victor3232/vip/assets/44395332/76e3e993-bbcb-4d5c-a010-80970f5076a4)
+

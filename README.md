@@ -10,46 +10,18 @@
 - UBUNTU 20.04.05
 - DEBIAN 10
 
-### FITUR TAMBAHAN
-- Tambah Swap 1GiB
-- Pemasangan yang dinamis
-- Tuning profile pada server
-- Penambahan fail2ban
-- Auto block sebagian ads indo by default
-- Auto clear log per 3 menit
-- Auto deler expired
-- User Details Akun
+### SIMPLE FEATURE
+- LIMIT IP
+- LIMIT QUOATA XRAY
+- BOT NOTIF MULLOG & QUOTA HABIS
+- SIMPLE CREATE WITH TELEGRAM BOT
+- SUPPORT SEMUA METHOD INJECT
+
 
 ### PORT INFO
 ```
-- TROJAN WS 443
-- TROJAN GRPC 443
-- SHADOWSOCKS WS 443
-- SHADOWSOCKS GRPC 443
-- VLESS WS 443
-- VLESS GRPC 443
-- VLESS NONTLS 80
-- VMESS WS 443
-- VMESS GRPC 443
-- VMESS NONTLS 80
-- SSH WS / TLS 443
-- SS)
-H NON TLS 8880
-- OVPN SSL/TCP 1194
-- SLOWDNS 5300
-```
-
-### SETTING CLOUDFLARE
-```
-- SSL/TLS : FULL
-- SSL/TLS Recommender : OFF
-- GRPC : ON
-- WEBSOCKET : ON
-- Always Use HTTPS : OFF
-iyya - UNDER ATTACK MODE : OFF
-```
-
+443 / 80
 
 ### TAMPILAN SCRIPT
-![IMG_20231217_183435](https://github.com/victor3232/vip/assets/44395332/76e3e993-bbcb-4d5c-a010-80970f5076a4)
+![IMG_20231217_190421](https://github.com/victor3232/vip/assets/44395332/2651a342-67a3-4d01-b52b-4995abc7afac)
 

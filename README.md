@@ -1,7 +1,11 @@
 
 
 ### INSTALL SCRIPT 
------------------
+- FREE INSATALL
+- HARUS PUNYA DOMAIN SENDIRJ
+- KIRIM IP VPS KALIAN KE WA / TELEGRAM
+- WHATSAPP : wa.me/6281246238773
+- Telegram : t.me/kibiljoe
 
 ### TESTED ON OS 
 - UBUNTU 20.04.05

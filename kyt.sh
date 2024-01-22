@@ -3,32 +3,29 @@ NS=$( cat /etc/xray/dns )
 PUB=$( cat /etc/slowdns/server.pub )
 domain=$(cat /etc/xray/domain)
 #color
-grenbo="\e[92;1m"
-NC='\e[0m'
-#install
+
 cd /etc/systemd/system/
 rm -rf kyt.service
 cd
+grenbo="\e[92;1m"
+NC='\e[0m'
+#install
 cd /usr/bin
 rm -rf kyt
 rm -rf bot
 apt update && apt upgrade
 apt install python3 python3-pip git
 cd /usr/bin
-wget https://raw.githubusercontent.com/victor3232/vip/main/limit/bot.zip
-clear
+wget https://raw.githubusercontent.com/serigala16/wiz4rd/MASTER/limit/bot.zip
 unzip bot.zip
-clear
 mv bot/* /usr/bin
 chmod +x /usr/bin/*
 rm -rf bot.zip
 clear
 wget https://raw.githubusercontent.com/victor3232/vip/main/limit/kyt.zip
-clear
 unzip kyt.zip
-clear
 pip3 install -r kyt/requirements.txt
-rm -rf kyt.zip
+
 #isi data
 echo ""
 echo -e "\033[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"

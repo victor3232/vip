@@ -439,27 +439,59 @@ rm -rf /etc/vmess/.vmess.db
     }
 #Instal Xray
 function install_xray() {
-clear
-    print_install "Core Xray 1.8.1 Latest Version"
-    # install xray
-    #echo -e "[ ${green}INFO$NC ] Downloading & Installing xray core"
-    domainSock_dir="/run/xray";! [ -d $domainSock_dir ] && mkdir  $domainSock_dir
-    chown www-data.www-data $domainSock_dir
+    clear
+    print_install "Core Xray v1.7.5 (Stable Version)"
     
-    # / / Ambil Xray Core Version Terbaru
-latest_version="$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | grep tag_name | sed -E 's/.*"v(.*)".*/\1/' | head -n 1)"
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version $latest_version
- 
-    # // Ambil Config Server
+    # 1. Buat Direktori
+    mkdir -p /etc/xray
+    mkdir -p /var/log/xray
+    mkdir -p /usr/local/share/xray
+    chown www-data.www-data /var/log/xray
+    chmod +x /var/log/xray
+    touch /var/log/xray/access.log
+    touch /var/log/xray/error.log
+    
+    # 2. Download Xray Core v1.7.5 (Versi Paling Stabil untuk Config Lama)
+    # Kita pakai link official GitHub tapi versi 1.7.5
+    ARCH=$(uname -m)
+    if [[ $ARCH == "x86_64" ]]; then
+        # Versi 1.7.5 Official (Stabil)
+        LINK="https://github.com/XTLS/Xray-core/releases/download/v1.7.5/Xray-linux-64.zip"
+    elif [[ $ARCH == "aarch64" ]]; then
+        LINK="https://github.com/XTLS/Xray-core/releases/download/v1.7.5/Xray-linux-arm64-v8a.zip"
+    else
+        print_error "Arsitektur tidak didukung!"
+        exit 1
+    fi
+
+    echo "Downloading Xray Core v1.7.5..."
+    wget -q -O /tmp/xray.zip "$LINK"
+    
+    # 3. Cek apakah download sukses
+    if [ ! -s /tmp/xray.zip ]; then
+        echo "Download Gagal! Mencoba Link Backup..."
+        # Link Backup jika GitHub limit (Opsional, arahkan ke repo Anda jika punya backup)
+        wget -q -O /tmp/xray.zip "https://github.com/dhezpiere/Xray-core/releases/download/v1.7.5/Xray-linux-64.zip"
+    fi
+
+    # 4. Unzip dan Pasang
+    unzip -o /tmp/xray.zip -d /tmp/xray_bin > /dev/null 2>&1
+    mv /tmp/xray_bin/xray /usr/local/bin/xray
+    chmod +x /usr/local/bin/xray
+    rm -rf /tmp/xray.zip
+    rm -rf /tmp/xray_bin
+    
+    # 5. Ambil Config & Service (Sama seperti sebelumnya)
     wget -O /etc/xray/config.json "${REPO}limit/config.json" >/dev/null 2>&1
-    #wget -O /usr/local/bin/xray "${REPO}xray/xray.linux.64bit" >/dev/null 2>&1
     wget -O /etc/systemd/system/runn.service "${REPO}limit/runn.service" >/dev/null 2>&1
-    #chmod +x /usr/local/bin/xray
+
+    # 6. Download GeoData
+    wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
+    wget -q -O /usr/local/share/xray/geoip.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat"
+
     domain=$(cat /etc/xray/domain)
-    IPVS=$(cat /etc/xray/ipvps)
-    print_success "Core Xray 1.8.1 Latest Version"
     
-    # Settings UP Nginix Server
+    # Settings UP Nginx Server & HAProxy
     clear
     curl -s ipinfo.io/city >>/etc/xray/city
     curl -s ipinfo.io/org | cut -d " " -f 2-10 >>/etc/xray/isp
@@ -468,18 +500,18 @@ bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release
     wget -O /etc/nginx/conf.d/xray.conf "${REPO}limit/xray.conf" >/dev/null 2>&1
     sed -i "s/xxx/${domain}/g" /etc/haproxy/haproxy.cfg
     sed -i "s/xxx/${domain}/g" /etc/nginx/conf.d/xray.conf
-    curl ${REPO}limit/nginx.conf > /etc/nginx/nginx.conf
     
-cat /etc/xray/xray.crt /etc/xray/xray.key | tee /etc/haproxy/hap.pem
+    curl ${REPO}limit/nginx.conf > /etc/nginx/nginx.conf
+    cat /etc/xray/xray.crt /etc/xray/xray.key | tee /etc/haproxy/hap.pem
 
-    # > Set Permission
     chmod +x /etc/systemd/system/runn.service
 
-    # > Create Service
+    # Create Service Xray (Standard)
     rm -rf /etc/systemd/system/xray.service.d
     cat >/etc/systemd/system/xray.service <<EOF
+[Unit]
 Description=Xray Service
-Documentation=https://github.com
+Documentation=https://github.com/XTLS/Xray-core
 After=network.target nss-lookup.target
 
 [Service]
@@ -495,9 +527,9 @@ LimitNOFILE=1000000
 
 [Install]
 WantedBy=multi-user.target
-
 EOF
-print_success "Konfigurasi Packet"
+
+    print_success "Xray Core v1.7.5 Installed"
 }
 
 function ssh(){

@@ -231,38 +231,56 @@ function first_setup(){
     OS_ID=$(cat /etc/os-release | grep -w ID | head -n1 | sed 's/ID=//g' | sed 's/"//g')
     OS_VERSION=$(cat /etc/os-release | grep -w VERSION_ID | head -n1 | sed 's/VERSION_ID=//g' | sed 's/"//g')
 
+    # === LOGIC UBUNTU ===
     if [[ "$OS_ID" == "ubuntu" ]]; then
         echo "Setup Dependencies Ubuntu $OS_VERSION..."
         sudo apt update -y
         apt-get install --no-install-recommends software-properties-common -y
-
+        
         if [[ "$OS_VERSION" == "22.04" ]] || [[ "$OS_VERSION" == "24.04" ]]; then
-            # === LOGIC KHUSUS UBUNTU 22 & 24 ===
-            echo "Terdeteksi Ubuntu Baru ($OS_VERSION). Menginstall libssl1.1 & HAProxy Native..."
-            
-            # Install libssl1.1 manual (Wajib untuk Xray/Tunneling lama di OS baru)
+            echo "Terdeteksi Ubuntu Baru ($OS_VERSION)..."
+            # Install libssl1.1 dari repo legacy
             echo "deb http://security.ubuntu.com/ubuntu focal-security main" | tee /etc/apt/sources.list.d/focal-security.list
             apt-get update
             apt-get install libssl1.1 -y
-            
-            # Install HAProxy dari repo bawaan (Versi 2.4++ sudah stabil, tidak butuh PPA lama)
             apt-get install haproxy -y
         else
-            # === LOGIC LAMA UNTUK UBUNTU 20.04 ===
-            echo "Terdeteksi Ubuntu Legacy. Menggunakan PPA HAProxy 2.0..."
+            # Ubuntu 20.04 kebawah
             add-apt-repository ppa:vbernat/haproxy-2.0 -y
             apt-get -y install haproxy=2.0.\*
         fi
 
+    # === LOGIC DEBIAN ===
     elif [[ "$OS_ID" == "debian" ]]; then
-        echo "Setup Dependencies Debian..."
-        curl https://haproxy.debian.net/bernat.debian.org.gpg | \
-            gpg --dearmor >/usr/share/keyrings/haproxy.debian.net.gpg
-        echo deb "[signed-by=/usr/share/keyrings/haproxy.debian.net.gpg]" \
-            http://haproxy.debian.net buster-backports-1.8 main \
-            >/etc/apt/sources.list.d/haproxy.list
-        sudo apt-get update
-        apt-get -y install haproxy=1.8.\*
+        echo "Setup Dependencies Debian $OS_VERSION..."
+        
+        # Hapus kunci gpg lama jika ada (bersih-bersih)
+        rm -f /usr/share/keyrings/haproxy.debian.net.gpg
+        rm -f /etc/apt/sources.list.d/haproxy.list
+        
+        if [[ "$OS_VERSION" == "11" ]] || [[ "$OS_VERSION" == "12" ]]; then
+            echo "Terdeteksi Debian Baru ($OS_VERSION)..."
+            
+            # Khusus Debian 12 Wajib Install libssl1.1 (OpenSSL 3 issue)
+            if [[ "$OS_VERSION" == "12" ]]; then
+                echo "deb http://security.debian.org/debian-security bullseye-security main" > /etc/apt/sources.list.d/bullseye-security.list
+                apt-get update
+                apt-get install libssl1.1 -y
+            fi
+            
+            # Debian 11 & 12 Install HAProxy langsung dari repo official (Stable)
+            apt-get update
+            apt-get install haproxy -y
+        else
+            # Debian 10 (Logic Lama)
+            curl https://haproxy.debian.net/bernat.debian.org.gpg | \
+                gpg --dearmor >/usr/share/keyrings/haproxy.debian.net.gpg
+            echo deb "[signed-by=/usr/share/keyrings/haproxy.debian.net.gpg]" \
+                http://haproxy.debian.net buster-backports-1.8 main \
+                >/etc/apt/sources.list.d/haproxy.list
+            sudo apt-get update
+            apt-get -y install haproxy=1.8.\*
+        fi
     else
         echo -e " Your OS Is Not Supported ($OS_ID $OS_VERSION)"
         exit 1
@@ -313,9 +331,13 @@ function base_package() {
     sudo apt-get install -y --no-install-recommends software-properties-common
     echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
     echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
-    sudo apt-get install -y speedtest-cli vnstat libnss3-dev libnspr4-dev pkg-config libpam0g-dev libcap-ng-dev libcap-ng-utils libselinux1-dev libcurl4-nss-dev flex bison make libnss3-tools libevent-dev bc rsyslog dos2unix zlib1g-dev libssl-dev libsqlite3-dev sed dirmngr libxml-parser-perl build-essential gcc g++ python htop lsof tar wget curl ruby zip unzip p7zip-full python3-pip libc6 util-linux build-essential msmtp-mta ca-certificates bsd-mailx iptables iptables-persistent netfilter-persistent net-tools openssl ca-certificates gnupg gnupg2 ca-certificates lsb-release gcc shc make cmake git screen socat xz-utils apt-transport-https gnupg1 dnsutils cron bash-completion ntpdate chrony jq openvpn easy-rsa
-    print_success "Packet Yang Dibutuhkan"
     
+    # PERBAIKAN DISINI:
+    # 1. 'python' diganti 'python3' (Wajib untuk Debian 12 / Ubuntu 24)
+    # 2. 'libcurl4-nss-dev' diganti 'libcurl4-openssl-dev' (NSS dev sudah dihapus di Debian 12)
+    sudo apt-get install -y speedtest-cli vnstat libnss3-dev libnspr4-dev pkg-config libpam0g-dev libcap-ng-dev libcap-ng-utils libselinux1-dev libcurl4-openssl-dev flex bison make libnss3-tools libevent-dev bc rsyslog dos2unix zlib1g-dev libssl-dev libsqlite3-dev sed dirmngr libxml-parser-perl build-essential gcc g++ python3 htop lsof tar wget curl ruby zip unzip p7zip-full python3-pip libc6 util-linux build-essential msmtp-mta ca-certificates bsd-mailx iptables iptables-persistent netfilter-persistent net-tools openssl ca-certificates gnupg gnupg2 ca-certificates lsb-release gcc shc make cmake git screen socat xz-utils apt-transport-https gnupg1 dnsutils cron bash-completion ntpdate chrony jq openvpn easy-rsa
+    
+    print_success "Packet Yang Dibutuhkan"
 }
 clear
 # Fungsi input domain

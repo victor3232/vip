@@ -961,17 +961,29 @@ print_success "Menu Packet"
 
 # Restart layanan after install
 function enable_services(){
-clear
-print_install "Enable Service"
+    clear
+    print_install "Enable Service"
+    
+    # === TAMBAHAN FIX UBUNTU 22/24 ===
+    # Fix Izin Akses rc.local (Wajib untuk Ubuntu 22/24)
+    chown root:root /etc/rc.local
+    chmod +x /etc/rc.local
+    
+    # Reload & Start Service
     systemctl daemon-reload
+    systemctl enable rc-local
+    systemctl start rc-local
+    systemctl restart rc-local
+    systemctl enable cron
+    systemctl restart cron
+    # =================================
+    
     systemctl start netfilter-persistent
-    systemctl enable --now rc-local
-    systemctl enable --now cron
     systemctl enable --now netfilter-persistent
     systemctl restart nginx
     systemctl restart xray
-    systemctl restart cron
     systemctl restart haproxy
+    
     print_success "Enable Service"
     clear
 }

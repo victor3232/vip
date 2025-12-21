@@ -960,7 +960,7 @@ EOF
 echo "/bin/false" >>/etc/shells
 echo "/usr/sbin/nologin" >>/etc/shells
 cat >/etc/rc.local <<EOF
-#!/bin/sh -e
+#!/bin/sh
 # rc.local
 # By default this script does nothing.
 iptables -I INPUT -p udp --dport 5300 -j ACCEPT

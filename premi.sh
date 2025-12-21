@@ -1,4 +1,16 @@
 #!/bin/bash
+# ==========================================
+# FIX: Agar tidak muncul layar pink (Interactive)
+export DEBIAN_FRONTEND=noninteractive
+
+# FIX: Agar tidak tanya restart service (Ubuntu 22/24)
+if [ -f /etc/needrestart/needrestart.conf ]; then
+    sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
+    echo "\$nrconf{restart} = 'a';" >> /etc/needrestart/needrestart.conf
+fi
+# ==========================================
+
+# ... lanjut ke kode script Anda di bawah ...
 ### Color
 apt upgrade -y
 apt update -y

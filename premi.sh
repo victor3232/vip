@@ -309,7 +309,7 @@ function base_package() {
     clear
     ########
     print_install "Menginstall Packet Yang Dibutuhkan"
-    apt install zip pwgen openssl netcat socat cron bash-completion -y
+    apt install zip pwgen openssl netcat-openbsd socat cron bash-completion chrony -y
     apt install figlet -y
     apt update -y
     apt upgrade -y
@@ -440,74 +440,35 @@ rm -rf /etc/vmess/.vmess.db
 #Instal Xray
 function install_xray() {
     clear
-    print_install "Core Xray v1.7.5 (Stable Version)"
+    print_install "Core Xray v1.7.5 (Stable Debian 12)"
     
-    # 1. Buat Direktori
-    mkdir -p /etc/xray
+    # Buat folder log & config
     mkdir -p /var/log/xray
-    mkdir -p /usr/local/share/xray
+    mkdir -p /etc/xray
     chown www-data.www-data /var/log/xray
     chmod +x /var/log/xray
-    touch /var/log/xray/access.log
-    touch /var/log/xray/error.log
-    
-    # 2. Download Xray Core v1.7.5 (Versi Paling Stabil untuk Config Lama)
-    # Kita pakai link official GitHub tapi versi 1.7.5
-    ARCH=$(uname -m)
-    if [[ $ARCH == "x86_64" ]]; then
-        # Versi 1.7.5 Official (Stabil)
-        LINK="https://github.com/XTLS/Xray-core/releases/download/v1.7.5/Xray-linux-64.zip"
-    elif [[ $ARCH == "aarch64" ]]; then
-        LINK="https://github.com/XTLS/Xray-core/releases/download/v1.7.5/Xray-linux-arm64-v8a.zip"
-    else
-        print_error "Arsitektur tidak didukung!"
-        exit 1
-    fi
 
-    echo "Downloading Xray Core v1.7.5..."
-    wget -q -O /tmp/xray.zip "$LINK"
+    # DOWNLOAD MANUAL v1.7.5 (Paling Aman untuk Debian)
+    wget -q -O /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/download/v1.7.5/Xray-linux-64.zip"
     
-    # 3. Cek apakah download sukses
-    if [ ! -s /tmp/xray.zip ]; then
-        echo "Download Gagal! Mencoba Link Backup..."
-        # Link Backup jika GitHub limit (Opsional, arahkan ke repo Anda jika punya backup)
-        wget -q -O /tmp/xray.zip "https://github.com/dhezpiere/Xray-core/releases/download/v1.7.5/Xray-linux-64.zip"
-    fi
-
-    # 4. Unzip dan Pasang
+    # Unzip
     unzip -o /tmp/xray.zip -d /tmp/xray_bin > /dev/null 2>&1
     mv /tmp/xray_bin/xray /usr/local/bin/xray
     chmod +x /usr/local/bin/xray
-    rm -rf /tmp/xray.zip
-    rm -rf /tmp/xray_bin
-    
-    # 5. Ambil Config & Service (Sama seperti sebelumnya)
+    rm -rf /tmp/xray*
+
+    # Ambil Config & Service (Sesuai Repo Anda)
     wget -O /etc/xray/config.json "${REPO}limit/config.json" >/dev/null 2>&1
     wget -O /etc/systemd/system/runn.service "${REPO}limit/runn.service" >/dev/null 2>&1
 
-    # 6. Download GeoData
+    # GeoData
     wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
     wget -q -O /usr/local/share/xray/geoip.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat"
 
-    domain=$(cat /etc/xray/domain)
-    
-    # Settings UP Nginx Server & HAProxy
-    clear
-    curl -s ipinfo.io/city >>/etc/xray/city
-    curl -s ipinfo.io/org | cut -d " " -f 2-10 >>/etc/xray/isp
-    print_install "Memasang Konfigurasi Packet"
-    wget -O /etc/haproxy/haproxy.cfg "${REPO}limit/haproxy.cfg" >/dev/null 2>&1
-    wget -O /etc/nginx/conf.d/xray.conf "${REPO}limit/xray.conf" >/dev/null 2>&1
-    sed -i "s/xxx/${domain}/g" /etc/haproxy/haproxy.cfg
-    sed -i "s/xxx/${domain}/g" /etc/nginx/conf.d/xray.conf
-    
-    curl ${REPO}limit/nginx.conf > /etc/nginx/nginx.conf
-    cat /etc/xray/xray.crt /etc/xray/xray.key | tee /etc/haproxy/hap.pem
-
+    # Permission Service & Start
     chmod +x /etc/systemd/system/runn.service
-
-    # Create Service Xray (Standard)
-    rm -rf /etc/systemd/system/xray.service.d
+    
+    # Service Xray
     cat >/etc/systemd/system/xray.service <<EOF
 [Unit]
 Description=Xray Service
@@ -529,7 +490,10 @@ LimitNOFILE=1000000
 WantedBy=multi-user.target
 EOF
 
-    print_success "Xray Core v1.7.5 Installed"
+    systemctl daemon-reload
+    systemctl enable xray
+    systemctl start xray
+    print_success "Xray Core Installed"
 }
 
 function ssh(){

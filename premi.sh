@@ -231,45 +231,45 @@ function first_setup(){
     OS_ID=$(cat /etc/os-release | grep -w ID | head -n1 | sed 's/ID=//g' | sed 's/"//g')
     OS_VERSION=$(cat /etc/os-release | grep -w VERSION_ID | head -n1 | sed 's/VERSION_ID=//g' | sed 's/"//g')
 
-    # === LOGIC UBUNTU ===
+    # === LOGIC UBUNTU (20.04 / 22.04 / 24.04 / 26.04+) ===
     if [[ "$OS_ID" == "ubuntu" ]]; then
         echo "Setup Dependencies Ubuntu $OS_VERSION..."
         sudo apt update -y
         apt-get install --no-install-recommends software-properties-common -y
-        
-        if [[ "$OS_VERSION" == "22.04" ]] || [[ "$OS_VERSION" == "24.04" ]]; then
-            echo "Terdeteksi Ubuntu Baru ($OS_VERSION)..."
-            # Install libssl1.1 dari repo legacy
-            echo "deb http://security.ubuntu.com/ubuntu focal-security main" | tee /etc/apt/sources.list.d/focal-security.list
-            apt-get update
-            apt-get install libssl1.1 -y
-            apt-get install haproxy -y
-        else
+
+        MAJ=$(echo "$OS_VERSION" | cut -d. -f1)
+        if [[ "$MAJ" -le 20 ]]; then
             # Ubuntu 20.04 kebawah
-            add-apt-repository ppa:vbernat/haproxy-2.0 -y
-            apt-get -y install haproxy=2.0.\*
+            add-apt-repository ppa:vbernat/haproxy-2.0 -y || true
+            apt-get update -y
+            apt-get -y install haproxy=2.0.\* || apt-get install haproxy -y
+        else
+            # Ubuntu 22.04+: haproxy dari repo official (2.4/2.8/3.x). Xray v1.8.24 statis, tak butuh libssl1.1.
+            # Coba pasang libssl1.1 utk paket lawas lain; non-fatal kalau gagal (Ubuntu 26 dst).
+            echo "deb http://security.ubuntu.com/ubuntu focal-security main" | tee /etc/apt/sources.list.d/focal-security.list
+            apt-get update -y || true
+            apt-get install libssl1.1 -y || true
+            apt-get install haproxy -y
         fi
 
-    # === LOGIC DEBIAN ===
+    # === LOGIC DEBIAN (11 / 12 / 13+) ===
     elif [[ "$OS_ID" == "debian" ]]; then
         echo "Setup Dependencies Debian $OS_VERSION..."
-        
-        # Hapus kunci gpg lama jika ada (bersih-bersih)
+
+        # Bersih-bersih kunci/repo haproxy lama
         rm -f /usr/share/keyrings/haproxy.debian.net.gpg
         rm -f /etc/apt/sources.list.d/haproxy.list
-        
-        if [[ "$OS_VERSION" == "11" ]] || [[ "$OS_VERSION" == "12" ]]; then
-            echo "Terdeteksi Debian Baru ($OS_VERSION)..."
-            
-            # Khusus Debian 12 Wajib Install libssl1.1 (OpenSSL 3 issue)
-            if [[ "$OS_VERSION" == "12" ]]; then
+
+        MAJ=$(echo "$OS_VERSION" | cut -d. -f1)
+        if [[ "$MAJ" -ge 11 ]]; then
+            # Debian 11/12/13: haproxy dari repo official. Xray v1.8.24 statis, tak butuh libssl1.1.
+            # Debian 12 coba pasang libssl1.1 utk paket lawas lain; non-fatal (Debian 13 dst).
+            if [[ "$MAJ" == "12" ]]; then
                 echo "deb http://security.debian.org/debian-security bullseye-security main" > /etc/apt/sources.list.d/bullseye-security.list
-                apt-get update
-                apt-get install libssl1.1 -y
+                apt-get update -y || true
+                apt-get install libssl1.1 -y || true
             fi
-            
-            # Debian 11 & 12 Install HAProxy langsung dari repo official (Stable)
-            apt-get update
+            apt-get update -y
             apt-get install haproxy -y
         else
             # Debian 10 (Logic Lama)
@@ -278,7 +278,7 @@ function first_setup(){
             echo deb "[signed-by=/usr/share/keyrings/haproxy.debian.net.gpg]" \
                 http://haproxy.debian.net buster-backports-1.8 main \
                 >/etc/apt/sources.list.d/haproxy.list
-            sudo apt-get update
+            sudo apt-get update -y
             apt-get -y install haproxy=1.8.\*
         fi
     else
@@ -440,7 +440,7 @@ rm -rf /etc/vmess/.vmess.db
 #Instal Xray
 function install_xray() {
     clear
-    print_install "Core Xray v1.7.5 (Fix Root Permission)"
+    print_install "Core Xray v1.8.24 (Static - no libssl1.1 needed, all OS)"
     
     # 1. Buat Direktori Log & Config
     mkdir -p /etc/xray
@@ -451,18 +451,18 @@ function install_xray() {
     touch /var/log/xray/access.log
     touch /var/log/xray/error.log
     
-    # 2. Download Xray Core v1.7.5 (Versi Stabil)
+    # 2. Download Xray Core v1.8.24 (statis; jalan di Ubuntu 22/24/26 & Debian 11/12/13)
     ARCH=$(uname -m)
     if [[ $ARCH == "x86_64" ]]; then
-        LINK="https://github.com/XTLS/Xray-core/releases/download/v1.7.5/Xray-linux-64.zip"
+        LINK="https://github.com/XTLS/Xray-core/releases/download/v1.8.24/Xray-linux-64.zip"
     elif [[ $ARCH == "aarch64" ]]; then
-        LINK="https://github.com/XTLS/Xray-core/releases/download/v1.7.5/Xray-linux-arm64-v8a.zip"
+        LINK="https://github.com/XTLS/Xray-core/releases/download/v1.8.24/Xray-linux-arm64-v8a.zip"
     else
         print_error "Arsitektur tidak didukung!"
         exit 1
     fi
 
-    echo "Downloading Xray Core v1.7.5..."
+    echo "Downloading Xray Core v1.8.24..."
     wget -q -O /tmp/xray.zip "$LINK"
     
     # 3. Install & Cleanup
@@ -491,6 +491,13 @@ function install_xray() {
     wget -O /etc/nginx/conf.d/xray.conf "${REPO}limit/xray.conf" >/dev/null 2>&1
     sed -i "s/xxx/${domain}/g" /etc/haproxy/haproxy.cfg
     sed -i "s/xxx/${domain}/g" /etc/nginx/conf.d/xray.conf
+
+    # FIX HAPROXY 3.0 (Debian 13 / Ubuntu 26): paksa kurva TLS klasik.
+    # Tanpa ini haproxy nego X25519MLKEM768 (post-quantum) -> V2rayNG putus ("closed pipe").
+    # Aman di semua versi haproxy. Hanya tambahkan jika belum ada.
+    if ! grep -q "ssl-default-bind-curves" /etc/haproxy/haproxy.cfg; then
+        sed -i '/ssl-default-bind-options/a\    ssl-default-bind-curves X25519:prime256v1:secp384r1' /etc/haproxy/haproxy.cfg
+    fi
     
     curl ${REPO}limit/nginx.conf > /etc/nginx/nginx.conf
     cat /etc/xray/xray.crt /etc/xray/xray.key | tee /etc/haproxy/hap.pem
@@ -526,7 +533,7 @@ EOF
     systemctl start xray
     systemctl restart xray
     
-    print_success "Xray Core v1.7.5 Installed & Running"
+    print_success "Xray Core v1.8.24 Installed & Running"
 }
 
 function ssh(){

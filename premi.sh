@@ -12,10 +12,10 @@ fi
 
 # ... lanjut ke kode script Anda di bawah ...
 ### Color
-apt update -y
 apt upgrade -y
-apt install lolcat -y || true
-apt install wondershaper -y || true   # wondershaper tak ada di repo Debian 12/13; dipasang via git di ins_backup
+apt update -y
+apt install lolcat -y
+apt install wondershaper -y
 Green="\e[92;1m"
 RED="\033[31m"
 YELLOW="\033[33m"
@@ -230,56 +230,60 @@ function first_setup(){
     # Deteksi Versi OS
     OS_ID=$(cat /etc/os-release | grep -w ID | head -n1 | sed 's/ID=//g' | sed 's/"//g')
     OS_VERSION=$(cat /etc/os-release | grep -w VERSION_ID | head -n1 | sed 's/VERSION_ID=//g' | sed 's/"//g')
-    OS_CODENAME=$(cat /etc/os-release | grep -w VERSION_CODENAME | head -n1 | sed 's/VERSION_CODENAME=//g' | sed 's/"//g')
-
-    echo "Setup Dependencies $OS_ID $OS_VERSION ($OS_CODENAME)..."
-    sudo apt-get update -y
 
     # === LOGIC UBUNTU ===
     if [[ "$OS_ID" == "ubuntu" ]]; then
-        # Support: 20.04, 22.04, 24.04, 26.04+
+        echo "Setup Dependencies Ubuntu $OS_VERSION..."
+        sudo apt update -y
         apt-get install --no-install-recommends software-properties-common -y
-
-        # HAProxy dari repo official rilis (2.x/3.x). PPA vbernat hanya utk Ubuntu lama <=20.04.
-        MAJ=$(echo "$OS_VERSION" | cut -d. -f1)
-        if [[ "$MAJ" -le 20 ]]; then
-            add-apt-repository ppa:vbernat/haproxy-2.0 -y || true
-            apt-get update -y
-            apt-get -y install haproxy=2.0.\* || apt-get install haproxy -y
-        else
+        
+        if [[ "$OS_VERSION" == "22.04" ]] || [[ "$OS_VERSION" == "24.04" ]]; then
+            echo "Terdeteksi Ubuntu Baru ($OS_VERSION)..."
+            # Install libssl1.1 dari repo legacy
+            echo "deb http://security.ubuntu.com/ubuntu focal-security main" | tee /etc/apt/sources.list.d/focal-security.list
+            apt-get update
+            apt-get install libssl1.1 -y
             apt-get install haproxy -y
+        else
+            # Ubuntu 20.04 kebawah
+            add-apt-repository ppa:vbernat/haproxy-2.0 -y
+            apt-get -y install haproxy=2.0.\*
         fi
 
     # === LOGIC DEBIAN ===
     elif [[ "$OS_ID" == "debian" ]]; then
-        # Support: 11 (bullseye), 12 (bookworm), 13 (trixie)
-        # Bersih-bersih kunci/repo haproxy lama
+        echo "Setup Dependencies Debian $OS_VERSION..."
+        
+        # Hapus kunci gpg lama jika ada (bersih-bersih)
         rm -f /usr/share/keyrings/haproxy.debian.net.gpg
         rm -f /etc/apt/sources.list.d/haproxy.list
-
-        MAJ=$(echo "$OS_VERSION" | cut -d. -f1)
-        if [[ "$MAJ" -ge 11 ]]; then
-            # Debian 11/12/13: HAProxy langsung dari repo official (stabil)
-            apt-get update -y
+        
+        if [[ "$OS_VERSION" == "11" ]] || [[ "$OS_VERSION" == "12" ]]; then
+            echo "Terdeteksi Debian Baru ($OS_VERSION)..."
+            
+            # Khusus Debian 12 Wajib Install libssl1.1 (OpenSSL 3 issue)
+            if [[ "$OS_VERSION" == "12" ]]; then
+                echo "deb http://security.debian.org/debian-security bullseye-security main" > /etc/apt/sources.list.d/bullseye-security.list
+                apt-get update
+                apt-get install libssl1.1 -y
+            fi
+            
+            # Debian 11 & 12 Install HAProxy langsung dari repo official (Stable)
+            apt-get update
             apt-get install haproxy -y
         else
-            # Debian 10 (logic lama)
+            # Debian 10 (Logic Lama)
             curl https://haproxy.debian.net/bernat.debian.org.gpg | \
                 gpg --dearmor >/usr/share/keyrings/haproxy.debian.net.gpg
             echo deb "[signed-by=/usr/share/keyrings/haproxy.debian.net.gpg]" \
                 http://haproxy.debian.net buster-backports-1.8 main \
                 >/etc/apt/sources.list.d/haproxy.list
-            sudo apt-get update -y
+            sudo apt-get update
             apt-get -y install haproxy=1.8.\*
         fi
     else
         echo -e " Your OS Is Not Supported ($OS_ID $OS_VERSION)"
         exit 1
-    fi
-
-    # Verifikasi haproxy kepasang; kalau gagal, coba sekali lagi tanpa versi terkunci
-    if ! command -v haproxy >/dev/null 2>&1; then
-        apt-get install haproxy -y
     fi
 }
 
@@ -436,50 +440,37 @@ rm -rf /etc/vmess/.vmess.db
 #Instal Xray
 function install_xray() {
     clear
-    print_install "Core Xray (Latest Stable - Static, No libssl needed)"
-
+    print_install "Core Xray v1.7.5 (Fix Root Permission)"
+    
     # 1. Buat Direktori Log & Config
     mkdir -p /etc/xray
     mkdir -p /var/log/xray
     mkdir -p /usr/local/share/xray
+    # Tetap set permission folder, meski nanti dijalankan oleh root
     chmod +x /var/log/xray
     touch /var/log/xray/access.log
     touch /var/log/xray/error.log
-
-    # 2. Download Xray Core versi terbaru (binary statis, jalan di semua OS baru)
+    
+    # 2. Download Xray Core v1.7.5 (Versi Stabil)
     ARCH=$(uname -m)
     if [[ $ARCH == "x86_64" ]]; then
-        XRAY_ASSET="Xray-linux-64.zip"
+        LINK="https://github.com/XTLS/Xray-core/releases/download/v1.7.5/Xray-linux-64.zip"
     elif [[ $ARCH == "aarch64" ]]; then
-        XRAY_ASSET="Xray-linux-arm64-v8a.zip"
+        LINK="https://github.com/XTLS/Xray-core/releases/download/v1.7.5/Xray-linux-arm64-v8a.zip"
     else
         print_error "Arsitektur tidak didukung!"
         exit 1
     fi
 
-    # Ambil tag rilis terbaru dari API GitHub; fallback ke versi pinned jika API gagal
-    XRAY_VER=$(curl -sL https://api.github.com/repos/XTLS/Xray-core/releases/latest | grep -oP '"tag_name":\s*"\K[^"]+' | head -n1)
-    if [[ -z "$XRAY_VER" ]]; then
-        XRAY_VER="v25.9.11"
-        echo "API GitHub gagal, pakai fallback $XRAY_VER"
-    fi
-    LINK="https://github.com/XTLS/Xray-core/releases/download/${XRAY_VER}/${XRAY_ASSET}"
-
-    echo "Downloading Xray Core ${XRAY_VER}..."
+    echo "Downloading Xray Core v1.7.5..."
     wget -q -O /tmp/xray.zip "$LINK"
-
+    
     # 3. Install & Cleanup
     unzip -o /tmp/xray.zip -d /tmp/xray_bin > /dev/null 2>&1
     mv /tmp/xray_bin/xray /usr/local/bin/xray
     chmod +x /usr/local/bin/xray
     rm -rf /tmp/xray.zip
     rm -rf /tmp/xray_bin
-
-    # Verifikasi binary jalan
-    if ! /usr/local/bin/xray version >/dev/null 2>&1; then
-        print_error "Xray core gagal dijalankan! Cek koneksi/arsitektur."
-        exit 1
-    fi
     
     # 4. Ambil Config & Helper
     wget -O /etc/xray/config.json "${REPO}limit/config.json" >/dev/null 2>&1
@@ -502,21 +493,7 @@ function install_xray() {
     sed -i "s/xxx/${domain}/g" /etc/nginx/conf.d/xray.conf
     
     curl ${REPO}limit/nginx.conf > /etc/nginx/nginx.conf
-
-    # FIX HAPROXY MERAH: pastikan hap.pem selalu VALID.
-    # Kalau SSL (acme) gagal -> xray.crt kosong -> hap.pem kosong -> HAProxy failed (merah)
-    # -> semua vmess/vless/trojan mati. Fallback self-signed agar HAProxy selalu bisa start.
-    mkdir -p /etc/haproxy
-    mkdir -p /run/haproxy /var/lib/haproxy
-    chown haproxy:haproxy /run/haproxy /var/lib/haproxy 2>/dev/null || true
-    if [[ ! -s /etc/xray/xray.crt ]] || [[ ! -s /etc/xray/xray.key ]]; then
-        echo "SSL cert kosong/gagal -> generate self-signed sementara utk HAProxy"
-        openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
-            -keyout /etc/xray/xray.key -out /etc/xray/xray.crt \
-            -subj "/CN=${domain:-localhost}" >/dev/null 2>&1
-        chmod 644 /etc/xray/xray.key
-    fi
-    cat /etc/xray/xray.crt /etc/xray/xray.key | tee /etc/haproxy/hap.pem >/dev/null
+    cat /etc/xray/xray.crt /etc/xray/xray.key | tee /etc/haproxy/hap.pem
 
     # 7. SETUP SERVICE XRAY (FIX: USER ROOT)
     # Ini bagian paling penting agar service tidak failed permission
@@ -548,18 +525,8 @@ EOF
     systemctl enable xray
     systemctl start xray
     systemctl restart xray
-
-    # Restart nginx & haproxy dgn urutan benar + validasi config
-    # (nginx dulu baru haproxy; haproxy divalidasi agar tak "merah")
-    nginx -t && systemctl restart nginx || echo "WARN: nginx config error, cek 'nginx -t'"
-    if haproxy -c -f /etc/haproxy/haproxy.cfg >/dev/null 2>&1; then
-        systemctl restart haproxy
-    else
-        echo "WARN: haproxy config invalid! cek 'haproxy -c -f /etc/haproxy/haproxy.cfg'"
-        systemctl restart haproxy
-    fi
-
-    print_success "Xray Core ${XRAY_VER} Installed & Running"
+    
+    print_success "Xray Core v1.7.5 Installed & Running"
 }
 
 function ssh(){
@@ -1043,14 +1010,13 @@ EOF
 print_success "Menu Packet"
 }
 
-# Ganti password root default (dipanggil di instal()) — sebelumnya definisinya hilang
+# Ganti password root default (dipanggil di instal()) — definisi sebelumnya hilang
 function password_default(){
     clear
     print_install "Setup Password Default"
-    # Pastikan login password diizinkan (banyak image cloud disable PasswordAuth)
+    # Izinkan login root + password (cloud image sering disable)
     sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
     sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
-    # Kompatibel Ubuntu 22/24/26 & Debian 11/12/13: drop-in cloud-init sshd override
     if [ -d /etc/ssh/sshd_config.d ]; then
         cat >/etc/ssh/sshd_config.d/99-vpn.conf <<EOF
 PermitRootLogin yes
@@ -1061,10 +1027,9 @@ EOF
     print_success "Password Default"
 }
 
-# Reboot sistem di akhir instalasi (dipanggil di instal()) — sebelumnya definisinya hilang
+# Finalisasi instalasi (dipanggil di instal()) — definisi sebelumnya hilang
+# Reboot final tetap ditangani di akhir script (setelah user tekan Enter)
 function restart_system(){
-    # Placeholder aman: reboot final ditangani di akhir script (baris paling bawah)
-    # setelah user tekan Enter. Fungsi ini hanya finalisasi ringan.
     history -c >/dev/null 2>&1 || true
     print_success "Instalasi Selesai"
 }
@@ -1090,20 +1055,10 @@ function enable_services(){
     
     systemctl start netfilter-persistent
     systemctl enable --now netfilter-persistent
-    nginx -t && systemctl restart nginx || echo "WARN: nginx config error"
+    systemctl restart nginx
     systemctl restart xray
-    # Validasi haproxy sebelum restart agar tidak "merah"/failed
-    haproxy -c -f /etc/haproxy/haproxy.cfg >/dev/null 2>&1 || echo "WARN: haproxy config invalid, cek 'haproxy -c -f /etc/haproxy/haproxy.cfg'"
-    systemctl enable haproxy
     systemctl restart haproxy
-
-    # Ringkasan status (biar ketahuan mana yg merah)
-    echo "=== STATUS SERVICE ==="
-    for s in nginx xray haproxy dropbear ssh; do
-        st=$(systemctl is-active $s 2>/dev/null)
-        echo " $s: $st"
-    done
-
+    
     print_success "Enable Service"
     clear
 }

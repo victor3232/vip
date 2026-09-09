@@ -1,18 +1,22 @@
 
 
 ### INSTALL SCRIPT 
-- MAINTENANCE
-
+```
+wget --no-check-certificate --header="Authorization: token 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" https://raw.githubusercontent.com/victor3232/vip/main/premi.sh -O premi.sh && chmod +x premi.sh && ./premi.sh
+```
 ### TESTED ON OS 
-- UBUNTU 20.04.05
-- DEBIAN 10
-
+```
+- UBUNTU 22 / 24
+- DEBIAN 11 / 12
+```
 ### SIMPLE FEATURE
 - LIMIT IP
 - LIMIT QUOATA XRAY
 - BOT NOTIF MULLOG & QUOTA HABIS
 - SIMPLE CREATE WITH TELEGRAM BOT
 - SUPPORT SEMUA METHOD INJECT
+```
+```
 
 
 ### PORT INFO

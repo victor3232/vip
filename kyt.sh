@@ -13,8 +13,8 @@ NC='\e[0m'
 cd /usr/bin
 rm -rf kyt
 rm -rf bot
-apt update && apt upgrade
-apt install python3 python3-pip git
+apt update -y && apt upgrade -y
+apt install python3 python3-pip git unzip -y
 cd /usr/bin
 wget https://raw.githubusercontent.com/serigala16/wiz4rd/MASTER/limit/bot.zip
 unzip bot.zip
@@ -24,7 +24,11 @@ rm -rf bot.zip
 clear
 wget https://raw.githubusercontent.com/victor3232/vip/main/limit/kyt.zip
 unzip kyt.zip
-pip3 install -r kyt/requirements.txt
+# FIX Ubuntu 24 / Debian 12 (PEP 668 externally-managed): pip3 biasa ditolak sistem.
+# Pakai --break-system-packages; fallback apt python3-telethon kalau pip gagal.
+pip3 install --break-system-packages --no-cache-dir -r kyt/requirements.txt \
+  || pip3 install --no-cache-dir -r kyt/requirements.txt \
+  || apt install -y python3-telethon python3-requests
 
 #isi data
 echo ""

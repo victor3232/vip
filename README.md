@@ -1,9 +1,4 @@
 
-
-### INSTALL SCRIPT 
-```
-wget --no-check-certificate --header="Authorization: token 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" https://raw.githubusercontent.com/victor3232/vip/main/premi.sh -O premi.sh && chmod +x premi.sh && ./premi.sh
-```
 ### TESTED ON OS 
 ```
 - UBUNTU 22 / 24
